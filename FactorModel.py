@@ -23,7 +23,7 @@ for ticker in stock_tickers[1:]:
         errors.append(ticker)
         raise Exception('Dates are inconsistent - please fix your data!')
 
-# Extract returns and normalize by mean and std
+# Extract returns
 def to_return_array(df):
     df.set_index('Ticker', append=True, inplace=True)
     df_unstack = df['Close'].unstack(level=1)
@@ -32,12 +32,66 @@ def to_return_array(df):
     df.drop('Close', axis=1, inplace=True)
     df = df.unstack(level=1)
     df.columns = df.columns.droplevel()
-    df = (df - np.mean(df, axis=0)) / np.std(df, axis=0)
-# It might be a good idea to think about whether it makes sense to
-# scale the standard deviations like this
     return df
 
 stock_data = to_return_array(stock_data)
 ETF_data = to_return_array(ETF_data)
 
-# Do the Gram Schmidt Regression Process
+# Normalize both the attributes and targets to mean zero and
+# vol equal to SPY (this is maybe a bit quirky)
+SPY = ETF_data.loc[:, 'SPY']
+SPY_vol = np.std( (SPY - np.mean(SPY)), axis=0, ddof=1)
+Y = stock_data.to_numpy()
+X = ETF_data.to_numpy()
+Y_mean = np.mean(Y, axis=0)
+Y = (Y - Y_mean) * SPY_vol / np.std(Y, axis=0)
+X = (X - np.mean(X, axis=0)) * SPY_vol / np.std(X, axis=0)
+
+# Main Part of the Code
+# Use univariate linear regression to choose most explanatory ETF
+# Gram Schmidt orthonormalise to this and repeat until tstat < 2
+
+# Function to do multiple univariate regressions
+def lin_reg(X, Y, p):
+    n_attrs= X.shape[1] # ETFs
+    n_tgts = Y.shape[1] # Stocks
+    beta_hat = np.zeros([n_attrs, n_tgts]) # rows for ETFs, cols for Stocks
+    t_stats = np.zeros([n_attrs, n_tgts])
+    for i in range(n_attrs):
+        xTx_inv = 1 / (X[:, i].T @ X[:, i]) # this is a scalar since univariate
+        beta_hat[i, :] = xTx_inv * X[:, i].T @ Y
+        Y_hat = X[:, i] @ beta_hat[i, :]
+        MSE = (Y - Y_hat).T @ (Y - Y_hat) / (N-p) # MSE is a square matrix size n_tgts
+        se_beta_hat = np.sqrt(np.diag(xTx_inv * MSE)) # so array 1 x n_tgts
+        t_stats[i, :] = abs(beta_hat[i, :] / se_beta_hat)
+    return(beta_hat, t_stats)
+
+def build_R(X, p, n):
+# Returns a matrix R which implements the first n steps (from 1)
+# of a modified Gram Schmidt process.  i.e. post-multiplying
+# the input vector X (with p columns) by R will produce n
+# orthonormal basis vectors and then the original vectors,
+# residualized to the n GS vectors and normalized.
+    R = np.identity(p)
+# Do the Gram Schmidt upper left triangle
+    for i in range(n):
+        for j in range(i):
+            E = X @ R
+            step_R = np.identity(p)
+            step_R[j, i] = - (E[:, i].T @ E[:, j]) / (E[:, j].T @ E[:, j])
+            R = R @ step_R
+# Now do the residualization of the remaining vectors
+    E = X @ R
+    for i in range(n, p):
+        for j in range(n):
+            R[j, i] = - (E[:, i].T @ E[:, j]) / (E[:, j].T @ E[:, j])
+# Then normalize with respect to X @ R
+    R = R / l.norm((X @ R), axis=0)
+    return(R)
+
+# Initialise output variables
+N, p = X.shape
+Q = np.identity(p)  # will track permutations
+
+# Let's try it once for fun
+beta, tstats = lin_reg(X, Y, p)
