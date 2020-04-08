@@ -60,7 +60,7 @@ def lin_reg(X, Y, p):
     for i in range(n_attrs):
         xTx_inv = 1 / (X[:, i].T @ X[:, i]) # this is a scalar since univariate
         beta_hat[i, :] = xTx_inv * X[:, i].T @ Y
-        Y_hat = X[:, i] @ beta_hat[i, :]
+        Y_hat = np.reshape(X[:, i], [-1, 1]) @ np.reshape(beta_hat[i, :], [1, -1])
         MSE = (Y - Y_hat).T @ (Y - Y_hat) / (N-p) # MSE is a square matrix size n_tgts
         se_beta_hat = np.sqrt(np.diag(xTx_inv * MSE)) # so array 1 x n_tgts
         t_stats[i, :] = abs(beta_hat[i, :] / se_beta_hat)
