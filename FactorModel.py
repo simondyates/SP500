@@ -53,10 +53,6 @@ X = (X - np.mean(X, axis=0)) * SPY_vol / np.std(X, axis=0)
 
 # Function to do multiple univariate regressions
 def lin_reg(X, Y, p):
-    n_attrs= X.shape[1] # ETFs
-    n_tgts = Y.shape[1] # Stocks
-    beta_hat = np.zeros([n_attrs, n_tgts]) # rows for ETFs, cols for Stocks
-    t_stats = np.zeros([n_attrs, n_tgts])
     xTx_inv = l.inv(X.T @ X) # square matrix size n_attrs
     beta_hat = xTx_inv @ X.T @ Y # rectangular n_attrs, n_tgts
     Y_hat = X @ beta_hat # N x n_tgts
@@ -96,3 +92,9 @@ Q = np.identity(p)  # will track permutations
 
 # Let's try it once for fun
 beta, tstats = lin_reg(X, Y, p)
+b_norm = np.sqrt(np.diag(beta @ beta.T))/p
+t_norm = np.sqrt(np.diag(tstats @ tstats.T))/p
+
+# Next step, implement the GS algo but using beta as the decider for rank
+# and t stat for termination
+
