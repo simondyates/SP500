@@ -1,5 +1,5 @@
 import pandas as pd
-import numpy as np
+import numpy as np, numpy.linalg as l
 
 # Read in the data
 data_dir = '~/Dropbox/DataSci/PycharmProjects/SP500/'
@@ -57,13 +57,14 @@ def lin_reg(X, Y, p):
     n_tgts = Y.shape[1] # Stocks
     beta_hat = np.zeros([n_attrs, n_tgts]) # rows for ETFs, cols for Stocks
     t_stats = np.zeros([n_attrs, n_tgts])
-    for i in range(n_attrs):
-        xTx_inv = 1 / (X[:, i].T @ X[:, i]) # this is a scalar since univariate
-        beta_hat[i, :] = xTx_inv * X[:, i].T @ Y
-        Y_hat = np.reshape(X[:, i], [-1, 1]) @ np.reshape(beta_hat[i, :], [1, -1])
-        MSE = (Y - Y_hat).T @ (Y - Y_hat) / (N-p) # MSE is a square matrix size n_tgts
-        se_beta_hat = np.sqrt(np.diag(xTx_inv * MSE)) # so array 1 x n_tgts
-        t_stats[i, :] = abs(beta_hat[i, :] / se_beta_hat)
+    xTx_inv = l.inv(X.T @ X) # square matrix size n_attrs
+    beta_hat = xTx_inv @ X.T @ Y # rectangular n_attrs, n_tgts
+    Y_hat = X @ beta_hat # N x n_tgts
+    MSE = np.diag((Y - Y_hat).T @ (Y - Y_hat)) / (N-p) # MSE is an array length n_tgts
+    MSE = np.reshape(MSE, [1, -1]) # make it a 1 row matrix
+    xTx_diag = np.reshape(np.diag(xTx_inv), [-1, 1]) # and this a 1 col matrix
+    se_beta_hat = np.sqrt(xTx_diag @ MSE) # rectangular n_attrs, n_tgts
+    t_stats = abs(beta_hat / se_beta_hat)
     return(beta_hat, t_stats)
 
 def build_R(X, p, n):
