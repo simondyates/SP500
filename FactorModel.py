@@ -88,13 +88,37 @@ def build_R(X, p, n):
 
 # Initialise output variables
 N, p = X.shape
-Q = np.identity(p)  # will track permutations
+Q = np.identity(p)  # will track permutations of ETFs
+R = np.identity(p)  # will track Gram Schmidt process on ETFs
 
-# Let's try it once for fun
-beta, tstats = lin_reg(X, Y, p)
-b_norm = np.sqrt(np.diag(beta @ beta.T))/p
-t_norm = np.sqrt(np.diag(tstats @ tstats.T))/p
+# Cycle through the attributes until t stat drops below 1.5 (arbitrary!)
+for step in range(p):
+    beta_hat, t_stats = lin_reg(X @ Q @ R, Y, step)
+    beta_norm = np.sqrt(np.diag(beta_hat @ beta_hat.T)/p)
+    t_avg = np.mean(t_stats, axis=1)
+    pos = np.argmax(beta_norm[step:]) + step # find the beta that explains the most variance
+    print(pos)
+    if t_avg[pos] < 1.5:
+        print('Break at step {0}'.format(step))
+        break
+    Q[:, [step, pos]] = Q[:, [pos, step]]
+    R = build_R(X @ Q, p, step+1)
 
-# Next step, implement the GS algo but using beta as the decider for rank
-# and t stat for termination
+# Zero out unused variables
+for i in range(step, p):
+    Q[i, i] = 0
+    for j in range (p):
+        R[j, i] = 0
+
+# Print order of attributes
+index = (range(p) @ Q).astype('int')
+for i in range(step):
+    print(ETF_data.columns[index[i]])
+
+# Demonstrate that X_train are orthonormal up to step
+for i in range(step):
+    for j in range(step):
+        e_ij = (X @ Q @ R)[:, i].T @ (X @ Q @ R)[:, j]
+        print('{0:.2f}'.format(e_ij), end='\t')
+    print('')
 
