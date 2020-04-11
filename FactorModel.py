@@ -7,6 +7,8 @@
 # Decide whether the initial normalization by np.std makes sense:
 # - it's dropping the info that some stocks/sectors were more volatile
 #   then others during this period
+# -  arguably NONE of the normalization makes sense.  We could just do
+#    orthogonalization.
 # Replace t stat with Driscoll Kraay version
 
 import pandas as pd
