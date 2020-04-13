@@ -1,3 +1,7 @@
+# OK there's a bad bug here.  The second GS matrix is losing the orthogonalisation
+# to the first vector.  Need to spend some time to bug fix this.
+
+
 # Takes a set of prices for S&P500 stocks and also for 17 major ETFs
 # Runs a Gram Schmidt forward regression to identify the ETFs that
 # have the highest beta coefficients.
@@ -59,7 +63,7 @@ X = (X - np.mean(X, axis=0))
 norms = lin.norm(X, axis = 0)
 corr = X.T @ X / norms / norms.reshape([-1, 1])
 corr_df = pd.DataFrame(corr, columns=ETF_data.columns, index=ETF_data.columns)
-print(corr_df)
+# print(corr_df)
 # HOLY COW!  Covid-19 has blown up my data.  Everything is basically 100% correlated now.
 
 # Main Part of the Code
@@ -118,6 +122,11 @@ for step in range(p):
         break
     Q[:, [step, pos]] = Q[:, [pos, step]]
     R = build_R(X @ Q, step + 1)
+    if step == 1:
+        norm0 = lin.norm(X @ Q @ R, axis=0)
+        corr_0 = (X @ Q @ R).T @ (X @ Q @ R) / norm0 / norm0.reshape([-1, 1])
+        cols_0 = [ETF_data.columns[i] for i in (range(p) @ Q).astype('int')]
+        corr_0_df = pd.DataFrame(corr_0, columns=cols_0, index=cols_0)
 
 # Zero out unused attributes
 for i in range(step, p):
