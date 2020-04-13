@@ -1,20 +1,15 @@
 # Takes a set of prices for S&P500 stocks and also for 17 major ETFs
 # Runs a Gram Schmidt forward regression to identify the ETFs that
-# best explain the variance in the returns of the S&P500 stocks
-# NO normalization of variance is done at any stage
+# have the highest beta coefficients.
+# NO normalization of variance is done at any stage, so lower volatility ETFs are preferred
 
 # TO-DO List:
-# Compare pre and post Covid-19 periods
-# Decide whether the initial normalization by np.std makes sense:
-# - it's dropping the info that some stocks/sectors were more volatile
-#   then others during this period
-# -  arguably NONE of the normalization makes sense.  We could just do
-#    orthogonalization.
 # Replace t stat with Driscoll Kraay version
 
 import pandas as pd
 import numpy as np
 import numpy.linalg as lin
+import datetime as dt
 
 # Read in the data
 stock_data = pd.read_csv('SP500.csv', usecols=['Date', 'Ticker', 'Adj Close'], index_col='Date')
@@ -24,7 +19,7 @@ stock_tickers = pd.unique(stock_data['Ticker'])
 # Cut them down to six months
 stock_data.index = pd.to_datetime(stock_data.index, format='%Y-%m-%d').date
 ETF_data.index = pd.to_datetime(ETF_data.index, format='%Y-%m-%d').date
-last_dt = ETF_data.index.max()
+last_dt = dt.date(2020, 2, 20) # Let's look at data before the whole Covid thing hit
 first_dt = last_dt - pd.DateOffset(months=6)
 stock_data = stock_data.loc[(stock_data.index > first_dt) & (stock_data.index <= last_dt)]
 ETF_data = ETF_data.loc[(ETF_data.index > first_dt) & (ETF_data.index <= last_dt)]
@@ -59,6 +54,13 @@ X = ETF_data.to_numpy()
 Y_mean = np.mean(Y, axis=0)
 Y = (Y - Y_mean)
 X = (X - np.mean(X, axis=0))
+
+# Exploration: Look at the return correlation matrix for the attributes
+norms = lin.norm(X, axis = 0)
+corr = X.T @ X / norms / norms.reshape([-1, 1])
+corr_df = pd.DataFrame(corr, columns=ETF_data.columns, index=ETF_data.columns)
+print(corr_df)
+# HOLY COW!  Covid-19 has blown up my data.  Everything is basically 100% correlated now.
 
 # Main Part of the Code
 # Use linear regression to choose most explanatory ETF
@@ -105,13 +107,13 @@ N, p = X.shape
 Q = np.identity(p)  # will track permutations of ETFs
 R = np.identity(p)  # will track Gram Schmidt process on ETFs
 
-# Cycle through the attributes until average t stat drops below 1.5 (arbitrary!)
+# Cycle through the attributes until average t stat drops below 1 (arbitrary!)
 for step in range(p):
     beta_hat, t_stats = lin_reg(X @ Q @ R, Y, step)
     beta_norm = np.sqrt(np.diag(beta_hat @ beta_hat.T) / p)
     t_avg = np.mean(t_stats, axis=1)
     pos = np.argmax(beta_norm[step:]) + step  # Since we don't normalize, this will benefit low vol ETFs in selection
-    if t_avg[pos] < 1.5:
+    if t_avg[pos] < 1 and step>0:
         print('Break at step {0}'.format(step))
         break
     Q[:, [step, pos]] = Q[:, [pos, step]]

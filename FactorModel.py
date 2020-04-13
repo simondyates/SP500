@@ -62,6 +62,7 @@ Y_mean = np.mean(Y, axis=0)
 Y = (Y - Y_mean) * SPY_vol / np.std(Y, axis=0)
 X = (X - np.mean(X, axis=0)) * SPY_vol / np.std(X, axis=0)
 
+
 # Main Part of the Code
 # Use univariate linear regression to choose most explanatory ETF
 # Gram Schmidt orthonormalise to this and repeat until tstat < 2
