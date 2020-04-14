@@ -97,9 +97,11 @@ def build_R(vectors, n_steps):
             R = R @ step_R
     # Now do the residualization of the remaining vectors
     E = vectors @ R
+    step_R = np.identity(n_vecs)
     for i in range(n_steps, n_vecs):
         for j in range(n_steps):
-            R[j, i] = - (E[:, i].T @ E[:, j]) / (E[:, j].T @ E[:, j])
+            step_R[j, i] = - (E[:, i].T @ E[:, j]) / (E[:, j].T @ E[:, j])
+    R = R @ step_R
     # Then normalize with respect to vectors @ R
     R = R / lin.norm((vectors @ R), axis=0)
     return (R)

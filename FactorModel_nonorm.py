@@ -84,6 +84,9 @@ def lin_reg(attribs, targets, ddof):
 
 
 def build_R(vectors, n_steps):
+    # Possible bug:  at step 2 need to remove not just proj on vec 2 but
+    # proj on ADJUSTED vec 2 - i.e. you need the result of the previous GS step
+
     # Returns a matrix R which implements the first n_steps
     # of a modified Gram Schmidt process.  i.e. post-multiplying
     # the input vector vectors by R will produce n_steps
@@ -100,9 +103,11 @@ def build_R(vectors, n_steps):
             R = R @ step_R
     # Now do the residualization of the remaining vectors
     E = vectors @ R
+    step_R = np.identity(n_vecs)
     for i in range(n_steps, n_vecs):
         for j in range(n_steps):
-            R[j, i] = - (E[:, i].T @ E[:, j]) / (E[:, j].T @ E[:, j])
+            step_R[j, i] = - (E[:, i].T @ E[:, j]) / (E[:, j].T @ E[:, j])
+    R = R @ step_R
     return (R)
 
 
@@ -122,11 +127,6 @@ for step in range(p):
         break
     Q[:, [step, pos]] = Q[:, [pos, step]]
     R = build_R(X @ Q, step + 1)
-    if step == 1:
-        norm0 = lin.norm(X @ Q @ R, axis=0)
-        corr_0 = (X @ Q @ R).T @ (X @ Q @ R) / norm0 / norm0.reshape([-1, 1])
-        cols_0 = [ETF_data.columns[i] for i in (range(p) @ Q).astype('int')]
-        corr_0_df = pd.DataFrame(corr_0, columns=cols_0, index=cols_0)
 
 # Zero out unused attributes
 for i in range(step, p):
